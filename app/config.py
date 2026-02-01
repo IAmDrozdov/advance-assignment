@@ -26,7 +26,7 @@ class Settings:
     fee_tolerance_percent: float = float(os.getenv("FEE_TOLERANCE_PERCENT", "5.0"))
     
     # Rate Limiting
-    webhook_rate_limit: str = os.getenv("WEBHOOK_RATE_LIMIT", "1/minute")
+    webhook_rate_limit: str = os.getenv("WEBHOOK_RATE_LIMIT", "100/minute")
 
 
 # Singleton settings instance
