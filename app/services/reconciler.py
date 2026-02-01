@@ -47,7 +47,7 @@ def calculate_payment_status(expected: Decimal, received: Decimal) -> PaymentSta
 
 def amount_matches_remaining(txn_amount: Decimal, payment: dict) -> bool:
     remaining = to_decimal(payment.get("expected_amount")) - to_decimal(payment.get("received_amount"))
-    return txn_amount <= remaining or txn_amount >= remaining - get_tolerance(remaining)
+    return remaining - get_tolerance(remaining) <= txn_amount <= remaining
 
 
 def create_reconciliation_link(payment: dict, txn: dict, match_type: MatchType) -> None:
@@ -66,16 +66,12 @@ def create_reconciliation_link(payment: dict, txn: dict, match_type: MatchType) 
     })
 
 
-def update_payment_received(payment_id: str, txn_amount: Decimal) -> None:
-    payment = storage.get_payment(payment_id)
-    if not payment:
-        return
-    
+def update_payment_received(payment: dict, txn_amount: Decimal) -> None:
     expected = to_decimal(payment["expected_amount"])
     new_received = to_decimal(payment.get("received_amount")) + txn_amount
     status = calculate_payment_status(expected, new_received)
     
-    storage.update_payment(payment_id, {
+    storage.update_payment(payment["payment_id"], {
         "received_amount": str(new_received),
         "status": status.value,
     })
@@ -106,12 +102,14 @@ class TransactionReconciler:
         if not payment:
             return False
         create_reconciliation_link(payment, self.transaction, match_type)
-        update_payment_received(payment["payment_id"], self.amount)
+        update_payment_received(payment, self.amount)
         return True
 
     def _find_payment(self) -> tuple[dict | None, MatchType | None]:
         if match := self._match_by_reference():
             return match
+        if not self.payer:
+            return None, None
         if not self.reference and (match := self._match_by_payer_amount()):
             return match
         if self.amount < 0 and (match := self._match_refund_by_payer()):
@@ -127,8 +125,6 @@ class TransactionReconciler:
         return None
 
     def _match_by_payer_amount(self) -> tuple[dict, MatchType] | None:
-        if not self.payer:
-            return None
         candidates = storage.get_all_payments(
             currency=self.currency,
             status__in=[PaymentStatus.PENDING.value, PaymentStatus.PARTIALLY_PAID.value]
@@ -136,13 +132,11 @@ class TransactionReconciler:
         for p in candidates:
             if not payer_matches(self.payer, p.get("payer_name")):
                 continue
-            if amount_matches_remaining(abs(self.amount), p):
+            if amount_matches_remaining(self.amount, p):
                 return p, MatchType.AMOUNT_ONLY
         return None
 
     def _match_refund_by_payer(self) -> tuple[dict, MatchType] | None:
-        if not self.payer:
-            return None
         for link in storage.get_all_reconciliation_links():
             p = storage.get_payment(link.get("payment_id"))
             if not p or p.get("currency") != self.currency:
@@ -175,7 +169,7 @@ class PaymentReconciler:
                 continue
             if match_type := self._check_match(txn):
                 create_reconciliation_link(self.payment, txn, match_type)
-                update_payment_received(self.payment["payment_id"], to_decimal(txn.get("amount")))
+                update_payment_received(self.payment, to_decimal(txn.get("amount")))
                 matched_count += 1
         return matched_count
 
