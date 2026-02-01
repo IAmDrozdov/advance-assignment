@@ -69,6 +69,21 @@ class JsonStorage:
         self._lock = Lock()
         self._data = self._load()
 
+    def _matches_filter(self, record: dict, **kwargs) -> bool:
+        """
+            - field=value: exact match
+            - field__in=[v1, v2]: value in list
+        """
+        for key, value in kwargs.items():
+            if "__in" in key:
+                field = key.replace("__in", "")
+                if record.get(field) not in value:
+                    return False
+            else:
+                if record.get(key) != value:
+                    return False
+        return True
+
     def _load(self) -> dict:
         """Load data from JSON file"""
         if self.file_path.exists():
@@ -149,13 +164,22 @@ class JsonStorage:
                 return payment
         return None
 
-    def get_all_payments(self) -> list[dict]:
-        """Get all payments"""
-        return list(self._data["payments"].values())
+    def get_all_payments(self, **kwargs) -> list[dict]:
+        """Get all payments, optionally filtered by kwargs.
+        
+        Examples:
+            get_all_payments()  # all payments
+            get_all_payments(currency="USD")  # filter by currency
+            get_all_payments(status__in=["PENDING", "PARTIALLY_PAID"])  # filter by status in list
+        """
+        payments = list(self._data["payments"].values())
+        if kwargs:
+            payments = [p for p in payments if self._matches_filter(p, **kwargs)]
+        return payments
 
     def get_payments_by_status(self, status: str) -> list[dict]:
         """Get payments filtered by status"""
-        return [p for p in self._data["payments"].values() if p.get("status") == status]
+        return self.get_all_payments(status=status)
 
     def update_payment(self, payment_id: str, updates: dict) -> Optional[dict]:
         """Update a payment"""
@@ -216,13 +240,22 @@ class JsonStorage:
                 return txn
         return None
 
-    def get_all_transactions(self) -> list[dict]:
-        """Get all transactions"""
-        return list(self._data["transactions"].values())
+    def get_all_transactions(self, **kwargs) -> list[dict]:
+        """Get all transactions, optionally filtered by kwargs.
+        
+        Examples:
+            get_all_transactions()  # all transactions
+            get_all_transactions(currency="USD")  # filter by currency
+            get_all_transactions(matched=False)  # unmatched only
+        """
+        transactions = list(self._data["transactions"].values())
+        if kwargs:
+            transactions = [t for t in transactions if self._matches_filter(t, **kwargs)]
+        return transactions
 
     def get_unmatched_transactions(self) -> list[dict]:
         """Get transactions that haven't been matched to a payment"""
-        return [t for t in self._data["transactions"].values() if not t.get("matched", False)]
+        return self.get_all_transactions(matched=False)
 
     def update_transaction(self, transaction_id: str, updates: dict) -> Optional[dict]:
         """Update a transaction"""
@@ -261,11 +294,14 @@ class JsonStorage:
 
     def get_links_for_payment(self, payment_id: str) -> list[dict]:
         """Get all reconciliation links for a payment"""
-        return [link for link in self._data["reconciliation_links"] if link.get("payment_id") == payment_id]
+        return self.get_all_reconciliation_links(payment_id=payment_id)
 
-    def get_all_reconciliation_links(self) -> list[dict]:
-        """Get all reconciliation links"""
-        return self._data["reconciliation_links"]
+    def get_all_reconciliation_links(self, **kwargs) -> list[dict]:
+        """Get all reconciliation links, optionally filtered by kwargs."""
+        links = self._data["reconciliation_links"]
+        if kwargs:
+            links = [link for link in links if self._matches_filter(link, **kwargs)]
+        return links
 
     # =========================================================================
     # Statistics

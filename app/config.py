@@ -21,6 +21,9 @@ class Settings:
     host: str = os.getenv("HOST", "0.0.0.0")
     port: int = int(os.getenv("PORT", "8000"))
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
+    
+    # Reconciliation
+    fee_tolerance_percent: float = float(os.getenv("FEE_TOLERANCE_PERCENT", "5.0"))
 
 
 # Singleton settings instance

@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel
-from app.services.payments.constants import PaymentStatus, MatchType
+from app.services.constants import PaymentStatus, MatchType
 
 
 class ReconciliationLinkOut(BaseModel):

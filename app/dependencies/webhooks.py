@@ -40,6 +40,7 @@ async def verify_webhook_signature(
 
     if not hmac.compare_digest(expected_signature, x_webhook_signature):
         print("=== WEBHOOK VALIDATION FAILED (401) ===")
+        print(f"Raw body bytes: {body}")
         print(f"Raw payload: {payload}")
         print(f"Payload for signature (excluding sandbox_id): {payload_for_signature}")
         print(f"Canonical JSON: {canonical_json}")
