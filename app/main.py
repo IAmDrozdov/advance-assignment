@@ -6,11 +6,15 @@ Build your API here!
 
 from fastapi import FastAPI
 from app.routers import webhooks, payments
+from app.middleware.rate_limiter import apply_rate_limit_middleware
+
 app = FastAPI(
     title="Payment Reconciliation Service",
     description="Your reconciliation service goes here.",
     version="1.0.0",
 )
+
+apply_rate_limit_middleware(app)
 
 
 
