@@ -1,7 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from app.storage import storage
 from app.dependencies.payments import PaymentDep
-from app.schemas.payments import PaymentOut, PaymentWithLinksOut
+from app.schemas.payments import PaymentWithLinksOut, PaginatedPaymentsOut
 
 router = APIRouter(
     prefix="/payments",
@@ -10,8 +10,14 @@ router = APIRouter(
 
 
 @router.get("/")
-def get_payments() -> list[PaymentOut]:
-    return storage.get_all_payments()
+def get_payments(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+) -> PaginatedPaymentsOut:
+    all_payments = storage.get_all_payments()
+    total = len(all_payments)
+    items = all_payments[offset:offset + limit]
+    return PaginatedPaymentsOut(items=items, total=total)
 
 
 @router.get("/{payment_id}")

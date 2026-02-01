@@ -35,3 +35,8 @@ class PaymentOut(BaseModel):
 
 class PaymentWithLinksOut(PaymentOut):
     reconciliation_links: list[ReconciliationLinkOut]
+
+
+class PaginatedPaymentsOut(BaseModel):
+    items: list[PaymentOut]
+    total: int
