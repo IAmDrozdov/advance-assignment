@@ -16,13 +16,25 @@ PaymentWebhookDep = Annotated[PaymentCreateWebhookIn, Depends(validated_webhook_
 TransactionWebhookDep = Annotated[TransactionSettledWebhookIn, Depends(validated_webhook_dep(TransactionSettledWebhookIn))]
 
 
-@router.post("/payments")
+@router.post(
+    "/payments",
+    summary="Receive Payment Created Webhook",
+    description="Handles incoming payment.created webhook events from the payment provider. Creates a new payment record and triggers automatic reconciliation with existing transactions.",
+    response_description="Empty response on successful processing",
+    status_code=200,
+)
 @limiter.limit(settings.webhook_rate_limit)
 async def handle_payment_webhook(request: Request, payload: PaymentWebhookDep):
     ProcessPaymentWebhook(payload)()
 
 
-@router.post("/transactions")
+@router.post(
+    "/transactions",
+    summary="Receive Transaction Settled Webhook",
+    description="Handles incoming transaction.settled webhook events from the bank. Creates a new transaction record and triggers automatic reconciliation with existing payments.",
+    response_description="Empty response on successful processing",
+    status_code=200,
+)
 @limiter.limit(settings.webhook_rate_limit)
 async def handle_transaction_webhook(request: Request, payload: TransactionWebhookDep):
     ProcessTransactionWebhook(payload)()
